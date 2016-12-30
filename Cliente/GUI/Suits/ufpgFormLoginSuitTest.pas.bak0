@@ -1,0 +1,17 @@
+unit ufpgFormLoginSuitTest;
+
+interface
+
+uses
+  TestFramework, ufpgFormLoginTests;
+
+const
+  CS_CAMINHO_TESTE = 'Testar logar com usuário e com senha errados';
+
+implementation
+
+initialization
+  RegisterTest(CS_CAMINHO_TESTE, TffpgFormLoginTests.Create('TestarFormLogin', 'TestarLogarUsuarioErrado', 1, True));
+
+end.
+

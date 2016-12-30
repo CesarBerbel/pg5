@@ -1,0 +1,261 @@
+unit ufpgDUnitDAO;
+
+interface
+
+uses
+  SysUtils, inifiles, uspDatabase, ADODB, uspFuncoesExcel, Forms, Windows, Dialogs,
+  uspClientDataSet, uspDUnitDAO, DB, uspConnectionSQLite, Classes;
+
+type
+
+  TfpgDUnitDAO = class(TspDUnitDAO)
+  private
+    FoConexao: TspDatabase;
+    oConexaoSQLite: TADOConnection;
+  public
+    //    class function RetornaSiglaCliente: string;
+    property FoConnectionSQLite: TADOConnection read oConexaoSQLite write oConexaoSQLite;
+    function PegarDadosTeste(poCDS: TspClientDataSet; const psArquivo, psAba: string;
+      psID: string = ''): boolean; override;
+    function RetornaUsuarioCliente: TStringList;
+    class function PegarInstancia: TfpgDUnitDAO;
+    class procedure DestruirInstancia;
+
+  end;
+
+implementation
+
+uses
+  usegRepositorio, ufpgVariaveisTestesGUI, ufpgFuncoesSQLTests, ufpgFuncoesGUITestes;
+
+var
+  oConnectionSQLite: TspConnectionSQLite = nil;
+  Instancia: TfpgDUnitDAO = nil;
+  qyUsuario: TADOQuery;
+  oUsuario: TStringList;
+
+class function TfpgDUnitDAO.PegarInstancia: TfpgDUnitDAO;
+begin
+  if not Assigned(Instancia) then
+  begin
+    Instancia := TfpgDUnitDAO.Create; //PC_OK
+    Instancia.FoConexao := nil;
+    //    Instancia.oConexaoSQLite := nil;
+  end;
+  result := Instancia;
+end;
+
+class procedure TfpgDUnitDAO.DestruirInstancia;
+begin
+  if Assigned(Instancia) then
+  begin
+    FreeAndNil(Instancia); //PC_OK
+  end;
+  FreeAndNil(qyUsuario); //PC_OK
+  FreeAndNil(oUsuario); //PC_OK
+end;
+
+// 27/10/2015 leandro.humbert SALT:186660/20/8
+function TfpgDUnitDAO.PegarDadosTeste(poCDS: TspClientDataSet;
+  const psArquivo, psAba: string; psID: string): boolean;
+var
+  sCampo, sValor, sSQL: string;
+  qyDef: TADOQuery;
+  qyConf: TADOQuery;
+  qyValor: TADOQuery;
+begin
+  qyDef := TADOQuery.Create(nil);
+  qyConf := TADOQuery.Create(nil);
+  qyValor := TADOQuery.Create(nil);
+
+  if not Assigned(oConnectionSQLite) then
+    oConnectionSQLite := TspConnectionSQLite.Create; //PC_OK
+
+  FoConnectionSQLite := oConnectionSQLite.ObterConnectionSQLite;
+
+  qyDef.Connection := FoConnectionSQLite;
+  qyConf.Connection := FoConnectionSQLite;
+  qyValor.Connection := FoConnectionSQLite;
+
+  try
+    sSQL := 'SELECT EGP.CDGRUPO,                     ' + #13 +
+      '       EGP.CDDEFPARAMETRO                     ' + #13 +
+      '  FROM ESAJGRUPOPARAMTESTE EGP,               ' + #13 +
+      '       ESAJDEFPARAMETROTESTE EDP              ' + #13 +
+      ' WHERE EDP.DEDEFPARAMETRO = %S                ' + #13 +
+      '   AND EGP.DSGRUPO = %S                       ' + #13 +
+      '   AND EDP.CDDEFPARAMETRO = EGP.CDDEFPARAMETRO' + #13 +
+      '   AND EDP.CDCLIENTE = %S                     ';
+
+
+    qyDef.Close;
+    qyDef.SQL.Clear;
+    qyDef.SQL.Add('BEGIN TRANSACTION');
+    qyDef.ExecSql;
+
+    sSQL := Format(sSQL, [QuotedStr(psArquivo), QuotedStr(psAba), QuotedStr(gsCliente)]);
+    qyDef.Close;
+    qyDef.SQL.Clear;
+    qyDef.SQL.Add(sSQL);
+    qyDef.Open;
+
+    gbErroSQL := qyDef.IsEmpty;
+
+    if not gbErroSQL then
+    begin
+      sSQL := 'SELECT CDCONF,               ' + #13 + '       DSCAMPO               ' +
+        #13 + '  FROM ESAJCONFPARAMTESTE    ' + #13 + ' WHERE CDDEFPARAMETRO = %S   ' +
+        #13 + '   AND CDGRUPO = %S          ';
+
+      sSQL := Format(sSQL, [qyDef.FieldByName('CDDEFPARAMETRO').AsString,
+        qyDef.FieldByName('CDGRUPO').AsString]);
+      qyConf.Close;
+      qyConf.SQL.Clear;
+      qyConf.SQL.Add(sSQL);
+      qyConf.Open;
+
+      sSQL := 'SELECT EVPT.CDGRUPO,                          ' + #13 +
+        '       EVPT.CDDEFPARAMETRO,                         ' + #13 +
+        '       EVPT.CDCONF,                                 ' + #13 +
+        '       EVPT.CDVALOR,                                ' + #13 +
+        '       EVPT.DSVALOR,                                ' + #13 +
+        '       ECPT.DSCAMPO                                 ' + #13 +
+        '  FROM ESAJCONFPARAMTESTE ECPT,                     ' + #13 +
+        '       ESAJVALORPARAMTESTE EVPT                     ' + #13 +
+        ' WHERE EVPT.CDDEFPARAMETRO = %S                     ' + #13 +
+        '   AND EVPT.CDGRUPO = %S                            ' + #13 +
+        '   AND ECPT.CDDEFPARAMETRO = EVPT.CDDEFPARAMETRO    ' + #13 +
+        '   AND ECPT.CDGRUPO = EVPT.CDGRUPO                  ' + #13 +
+        '   AND ECPT.CDCONF = EVPT.CDCONF                    ';
+
+      sSQL := Format(sSQL, [qyDef.FieldByName('CDDEFPARAMETRO').AsString,
+        qyDef.FieldByName('CDGRUPO').AsString]);
+      qyValor.Close;
+      qyValor.SQL.Clear;
+      qyValor.SQL.Add(sSQL);
+      qyValor.Open;
+
+      poCDS.Close;
+      poCDS.Filter := '';
+      poCDS.Filtered := False;
+      poCDS.FieldDefs.Clear;
+      poCDS.FieldDefs.Add('CDDEFPARAMETRO', ftInteger);
+      poCDS.FieldDefs.Add('CDGRUPO', ftInteger);
+      poCDS.FieldDefs.Add('CDVALOR', ftInteger);
+
+      qyConf.First;
+      while not qyConf.EOF do
+      begin
+        sCampo := qyConf.FieldByName('DSCAMPO').AsString;
+        if Trim(sCampo) <> '' then
+          poCDS.FieldDefs.Add(sCampo, ftString, 100);
+        qyConf.Next;
+      end;
+      qyConf.Close;
+
+      poCDS.CreateDataSet;
+      poCDS.IndexFieldNames := 'CDVALOR';
+
+      //Valores
+      qyValor.First;
+      while not qyValor.EOF do
+      begin
+        if not poCDS.Locate('CDDEFPARAMETRO;CDGRUPO;CDVALOR',
+          VarArrayOf([qyValor.FieldByName('CDDEFPARAMETRO').AsInteger,
+          qyValor.FieldByName('CDGRUPO').AsInteger, qyValor.FieldByName('CDVALOR').AsInteger]),
+          []) then
+        begin
+          poCDS.Insert;
+          poCDS.FieldByName('CDDEFPARAMETRO').AsInteger :=
+            qyValor.FieldByName('CDDEFPARAMETRO').AsInteger;
+          poCDS.FieldByName('CDGRUPO').AsInteger := qyValor.FieldByName('CDGRUPO').AsInteger;
+          poCDS.FieldByName('CDVALOR').AsInteger := qyValor.FieldByName('CDVALOR').AsInteger;
+        end
+        else
+          poCDS.Edit;
+
+        sCampo := qyValor.FieldByName('DSCAMPO').AsString;
+        if Trim(sCampo) <> '' then
+        begin
+          sValor := qyValor.FieldByName('DSVALOR').AsString;
+          poCDS.FieldByName(sCampo).AsString := sValor;
+        end;
+        poCDS.Post;
+        qyValor.Next;
+      end;
+      qyValor.Close;
+
+      if (psID <> '') and (not poCDS.IsEmpty) then
+      begin
+        poCDS.Filter := 'spIDTeste = ' + QuotedStr(psID);
+        poCDS.Filtered := True;
+      end;
+
+      result := poCDS.Active;
+    end
+    else
+      result := False;
+
+  finally
+    qyDef.Close;
+    qyDef.SQL.Clear;
+    qyDef.SQL.Add('COMMIT');
+    qyDef.ExecSql;
+
+    FreeAndNil(qyDef);
+    FreeAndNil(qyConf);
+    FreeAndNil(qyValor);
+    if Assigned(oConnectionSQLite) then
+      FreeAndNil(oConnectionSQLite); //PC_OK
+  end;
+end;
+
+// 11/05/2016  - Carlos.Gaspar - SALT: 186660/25/1
+//class function TfpgDUnitDAO.RetornaSiglaCliente: string;
+//var
+//  osegRepositorio: TesegRepositorio;
+//begin
+//  oSegRepositorio := TesegRepositorio.Create(nil);
+//  try
+//    oSegRepositorio.SQLOpen(RetornaSiglaClienteSQL);
+//    result := oSegRepositorio.FieldByName('CLIENTE').AsString;
+//  finally
+//    FreeAndNil(oSegRepositorio);
+//  end;
+//end;
+
+// 19/08/2016  - Carlos.Gaspar - RTC: 50921
+function TfpgDUnitDAO.RetornaUsuarioCliente: TStringList;
+var
+  sSQL: string;
+begin
+  qyUsuario := TADOQuery.Create(nil);  //PC_OK
+  oUsuario := TStringList.Create; //PC_OK
+  try
+    //jcf:format=off
+    sSQL := 'SELECT CDUSUARIO, SENHAUSUARIO ' + #13 +
+            '  FROM ESAJUSUARIOTESTE        ' + #13 +
+            ' WHERE CDCLIENTE = %S          ';
+    //jcf:format=on
+    if not Assigned(oConnectionSQLite) then
+      oConnectionSQLite := TspConnectionSQLite.Create; //PC_OK
+
+    FoConnectionSQLite := oConnectionSQLite.ObterConnectionSQLite;
+    qyUsuario.Connection := FoConnectionSQLite;
+
+    qyUsuario.SQL.Clear;
+    qyUsuario.SQL.Add(Format(sSQL, [QuotedStr(gsCliente)]));
+    qyUsuario.Open;
+
+    oUsuario.Add(qyUsuario.FieldByName('CDUSUARIO').AsString);
+    oUsuario.Add(qyUsuario.FieldByName('SENHAUSUARIO').AsString);
+
+    result := oUsuario;
+  finally
+    if Assigned(oConnectionSQLite) then
+      FreeAndNil(oConnectionSQLite); //PC_OK
+  end;
+end;
+
+end.
+

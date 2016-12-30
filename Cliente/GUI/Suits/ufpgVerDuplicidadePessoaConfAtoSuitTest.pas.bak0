@@ -1,0 +1,27 @@
+unit ufpgVerDuplicidadePessoaConfAtoSuitTest;
+
+interface
+
+uses
+  TestFramework, ufpgConstanteGUITests, ufpgVariaveisTestesGUI, ufpgCodProcessoTests,
+  ufpgLimparVariaveisTests;
+
+implementation
+
+const
+  CS_CAMINHO_TESTE = 'Verificar Duplicidade Pessoa Configuração Atos';
+
+initialization
+
+  if gsCliente = CS_CLIENTE_PG5_TJSP then
+  begin
+    RegisterTest(CS_CAMINHO_TESTE, TffpgCadProcessoTests.Create('TestarCadastroProcesso', 'TestarCadProcessoClasse2261'));
+
+    RegisterTest(CS_CAMINHO_TESTE, TffpgEdicaoDocumentoTests.Create(
+      'TestarEmitirDocumento', 'TestarEmitirAtoOrdinatorio'));
+
+    RegisterTest(CS_CAMINHO_TESTE, TffpgEditorTests.Create(
+      'TestarEditor', 'TestarEmitirAtoOrdinatorio'));
+  end;
+end.
+

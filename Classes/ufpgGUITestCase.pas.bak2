@@ -1,0 +1,388 @@
+unit ufpgGUITestCase;
+
+interface
+
+uses
+  ADODB, Registry, Windows, SysUtils, Controls, uspForm, Forms, FutureWindows,
+  Classes, Menus, TestFramework, GUITesting, uspFuncoesExcel, uspGUITestCase,
+  ufpgVariaveisTestesGUI, ufpgFormLogin, ufpgMenu, ufpgFundoMenu, usajNumeroProcesso,
+  usaj4Geral, uspVerificadorTelas, udmCacheSGG, udmCacheEDT, udmCacheGGP,
+  ufpgDUnitDAO, usajdmLookUpCombo, usmdDMLookUp, usajDmCacheConsulta, uspClientDataSet,
+  ufpgDataModelTests;
+
+type
+  TfpgGUITestCase = class(TspGUITestCase)
+  private
+    FoClasseModelTests: TfpgDataModelTestsClass;
+    FoDados: TspClientDataSet;
+    FsLocalARC: string;
+    FsLocalSGC: string;
+    FsLocalPSS5: string;
+    FsLocalPro: string;
+    FsLocalPG5: string;
+    FbCarregarDadosSetUp: boolean;
+    FsMetodoTeste: string;
+    FnQtdeExecucao: integer;
+    FbFinalSuit: boolean;
+
+    procedure PreencherCamposLogin(poTelaLogin: TffpgFormLogin);
+    procedure LimparVariaveis;
+  protected
+    FoModelTests: TfpgDataModelTests;
+    function PegarClasseModelTests: TfpgDataModelTestsClass; reintroduce; virtual;
+
+    function PegarDadosTeste(poCDS: TspClientDataSet; const psArquivo, psAba: string;
+      psID: string = ''): boolean; override;
+  public
+    constructor Create(psMetodo: string; psLinhaPlanilha: string; pnQtdeExecucao: integer = 1; pbFinalSuit: boolean = False);
+      overload;
+    procedure FinalizarPendencia(const poWindow: IWindow);
+    procedure EnterTextInto(poControle: TControl; psTexto: string; pbCheckCampo: boolean = False);
+
+    procedure ExecutarRoteiroTestes(poEvExecutarRoteiroTestes: TspEvExecutarRoteiroTestes;
+      psMetodo: string = '');
+    procedure ExecutarSubRoteiroTestes(poEvExecutarRoteiroTestes: TspEvExecutarRoteiroTestes;
+      psAbaExcel: string; poModelTests: TfpgDataModelTests); reintroduce;
+    property spCarregarDadosSetUp: boolean read FbCarregarDadosSetUp write FbCarregarDadosSetUp;
+    property spFinalSuit: boolean read FbFinalSuit write FbFinalSuit;
+    property spQtdeExecucao: integer read FnQtdeExecucao write FnQtdeExecucao;
+    property spMetodoTeste: string read FsMetodoTeste write FsMetodoTeste;
+    property spLocalPG5: string read FsLocalPG5 write FsLocalPG5;
+    property spLocalPro: string read FsLocalPro write FsLocalPro;
+    property spLocalPSS5: string read FsLocalPSS5 write FsLocalPSS5;
+    property spLocalSGC: string read FsLocalSGC write FsLocalSGC;
+    property spLocalARC: string read FsLocalARC write FsLocalARC;
+    property spDados: TspClientDataSet read FoDados write FoDados;
+    property spDataModelTests: TfpgDataModelTests read FoModelTests;
+    procedure CarregarDados; override;
+    function TrocarUsuario(psUsuario: string; psLotacao: string = ''): boolean; override;
+    procedure LogarAplicacao(const poWindow: IWindow); override;
+    procedure SetUp; override;
+    procedure TearDown; override;
+  end;
+
+implementation
+
+uses
+  ufpgFuncoesGUITestes, usajAssistente, ufpgConstanteGUITests, dxEdLib;
+
+{
+  Data de Criação: 08/05/2013  Responsável: Claudio U. N. Biava  Salt: 125543/6
+}
+procedure TfpgGUITestCase.PreencherCamposLogin(poTelaLogin: TffpgFormLogin);
+var
+  oUsuario: TStringList;
+  oDUnitDAO: TfpgDUnitDAO;
+begin
+  ImprimirLog('TfpgGUITestCase.PreencherCamposLogin');
+  ImprimirLog('  spUsuario=' + spUsuario);
+  ImprimirLog('  spSenha=' + spSenha);
+  ImprimirLog('  spLotacao=' + spLotacao);
+  SetForegroundWindow(poTelaLogin.Handle);
+//  TFutureWindows.Expect('TMessageForm', 1000).ExecProc(PressionarOKNaTelaDeConfirmacao);
+
+  Check(poTelaLogin.dfcdUsuarioUS.Visible, 'Campo usuário deve estar visível.');
+  Check(poTelaLogin.dfcdUsuarioUS.Enabled, 'Campo usuário deve estar ativo.');
+
+
+  // 19/08/2016  - Carlos.Gaspar - RTC: 50921
+  if spUsuario = STRING_INDEFINIDO then
+  begin
+    oUsuario := TStringList.Create; //PC_OK
+    oDUnitDAO := TfpgDUnitDAO.Create; //PC_OK
+    try
+
+      oUsuario := oDUnitDAO.RetornaUsuarioCliente;
+      if oUsuario.Count > 0 then
+      begin
+        spUsuario := oUsuario[0];
+        spSenha := oUsuario[1];
+      end;
+    finally
+      FreeAndNil(oUsuario); //PC_OK
+      FreeAndNil(oDUnitDAO); //PC_OK
+    end;
+  end;
+  poTelaLogin.dfcdUsuarioUS.SetFocus;
+  EnterTextInto(poTelaLogin.dfcdUsuarioUS, spUsuario, False);
+  Tab;
+  EnterTextInto(poTelaLogin.dfnmSenhaUS, spSenha, False);
+  Tab;
+
+  if poTelaLogin.cbLotacaoUsuario.Enabled and (spLotacao <> '') then
+  begin
+    if IsStrANumber(spLotacao) then
+      poTelaLogin.cbLotacaoUsuario.KeyValue := spLotacao
+    else
+      EnterTextInto(poTelaLogin.cbLotacaoUsuario, spLotacao, False);
+  end;
+
+  Click(poTelaLogin.pbOk);
+end;
+
+{
+  Data de Criação: 08/05/2013  Responsável: Claudio U. N. Biava  Salt: 125543/6
+  Retorna TRUE se ocorreu troca de usuário
+}
+function TfpgGUITestCase.TrocarUsuario(psUsuario: string; psLotacao: string = ''): boolean;
+begin
+  result := (spUsuario <> psUsuario) or (spLotacao <> psLotacao);
+  if result then
+  begin
+    spUsuario := psUsuario;
+    spLotacao := psLotacao;
+    TFutureWindows.Expect('TffpgFormLogin', 1000).ExecProc(LogarAplicacao);
+    TffpgMenu(spTelaMenu).spSpeedButton1.Click;
+  end;
+end;
+
+{
+  Data de Criação: 04/04/2013  Responsável: Claudio U. N. Biava  Salt: 125543/6
+}
+procedure TfpgGUITestCase.LogarAplicacao(const poWindow: IWindow);
+begin
+  PreencherCamposLogin(TffpgFormLogin(poWindow.AsControl));
+end;
+
+{
+  Data de Criação: 20/03/2013  Responsável: Claudio U. N. Biava  Salt: 125543/6
+}
+procedure TfpgGUITestCase.SetUp;
+var
+  nEspMemoria: integer;
+begin
+  if not Assigned(spTelaMenu) then
+  begin
+    CarregarPropriedadesINI;
+
+//    TFutureWindows.Expect('TffpgFormLogin', 5000).ExecProc(LogarAplicacao);
+
+//    nEspMemoria := All
+
+    if not Assigned(ffpgMenu) then
+    begin
+      RegistrarEventoExitProc;
+      TsajNumeroProcesso.DefineTipoSistemaPadrao(tsPG5);
+      Application.Title := 'SAJ/PG5';
+      Application.CreateForm(TffpgMenu, ffpgMenu);
+      Application.CreateForm(TffpgFundoMenu, ffpgFundoMenu);
+      Application.CreateForm(TdmCacheSGG, dmCacheSGG);
+      Application.CreateForm(TdmEDT, dmEDT);
+      Application.CreateForm(TdmCacheGGP, dmCacheGGP);
+      Application.CreateForm(TsajdmLookUpCombo, sajdmLookUpCombo);
+      Application.CreateForm(TfsmdDMLookUp, fsmdDMLookUp);
+      Application.CreateForm(TsajdmCacheConsulta, sajdmCacheConsulta);
+      Application.MainForm.Width := 1024;
+      Application.MainForm.Height := 768;
+      Application.BringToFront;
+      Application.MainForm.Show;
+      Application.MainForm.BringToFront;
+
+      //      PreencherCamposLogin(TffpgFormLogin(PegarTela('ffpgFormLogin')));
+    end;
+
+    spTelaMenu := TspForm(Application.FindComponent('ffpgMenu'));
+    CheckNotNull(spTelaMenu, 'Tela ffpgMenu não está criada.');
+  end;
+
+  if spNomeTela = '' then
+    spNomeTela := PegarNomeTela;
+  if spNomeMenuItem = '' then
+    spNomeMenuItem := 'im' + spNomeTela;
+
+  ImprimirLog('TspGUITestCase.SetUp');
+
+  gbErroSQL := False;
+  if spCarregarDadosSetUp then
+    CarregarDados;
+
+  FoModelTests := PegarClasseModelTests.Create; //PC_OK
+end;
+
+procedure TfpgGUITestCase.ExecutarRoteiroTestes(poEvExecutarRoteiroTestes: TspEvExecutarRoteiroTestes;
+  psMetodo: string = '');
+var
+  sMetodoTeste: string;
+  i: integer;
+  bExecutou: boolean;
+begin
+  try
+    checkFalse(gbErroSQL, 'Erro ao pegar a planilha no SQLite');
+    bExecutou := False;
+    sMetodoTeste := psMetodo;
+    inicializarArrayProcesso;
+    FoVerificadorTelas.IniciarVerificacao;
+    check(Assigned(spDados), 'Faltou o parâmetro do método no create da suit');
+    spDados.First;
+    while (not spDados.EOF) do
+    begin
+      FoModelTests.CarregarModelTest(spDados);
+      try
+        if spMetodoTeste <> '' then
+          sMetodoTeste := spMetodoTeste
+        else
+          sMetodoTeste := Name;
+
+        if ((FsTest <> '') and (FsTest <> FoModelTests.spIDTeste)) or
+          (FoModelTests.spIDTeste = '') or ((FoModelTests.spMetodoTeste <> '') and
+          (FoModelTests.spMetodoTeste <> sMetodoTeste)) then
+        begin
+          spDados.Next;
+          Continue;
+        end;
+
+        ImprimirLog(FoModelTests.GerarInformacoesLog);
+
+        TrocarUsuario(FoModelTests.spUsuario, FoModelTests.spLotacao);
+
+        if Assigned(poEvExecutarRoteiroTestes) then
+        begin
+          bExecutou := True;
+
+          // cesar.almeida - evitar quebra por falta de parâmetro
+          if spQtdeExecucao = 0 then
+            spQtdeExecucao := 1;
+
+          for i := 0 to spQtdeExecucao - 1 do
+            poEvExecutarRoteiroTestes;
+        end;
+
+        ImprimirLog('Mensagens inesperadas=' + #13 + #10 +
+          spVerificadorTelas.PegarMensagensRegistradasInesperadas);
+        ImprimirLog('Mensagens indevidas=' + #13 + #10 +
+          spVerificadorTelas.PegarMensagensRegistradasIndevidamente);
+        Check(spVerificadorTelas.PegarMensagensRegistradasInesperadas = '', 'spIDTest=' +
+          FoModelTests.spIDTeste + ' Mensagens Inesperadas=' +
+          spVerificadorTelas.PegarMensagensRegistradasInesperadas);
+        Check(spVerificadorTelas.PegarMensagensRegistradasIndevidamente = '', 'spIDTest=' +
+          FoModelTests.spIDTeste + ' Mensagens Registradas Indevidamente=' +
+          spVerificadorTelas.PegarMensagensRegistradasIndevidamente);
+
+        Application.ProcessMessages;
+        spDados.Next;
+      finally
+        FoModelTests.LiberarModelTest;
+      end;
+    end;
+    check(bExecutou, 'Falha ao executar o roteiro ' + sMetodoTeste);
+  finally
+    FoVerificadorTelas.PararVerificacao;
+  end;
+end;
+
+procedure TfpgGUITestCase.TearDown;
+begin
+  ImprimirLog('TspGUITestCase.TearDown');
+  spFecharTelaNoTearDown := False;
+  FreeAndNil(FoModelTests);  //PC_OK
+  if spCarregarDadosSetUp then
+    FreeAndNil(FoDados);  //PC_OK
+  FoVerificadorTelas.Limpar;
+  if spFinalSuit then
+    LimparVariaveis;
+end;
+
+function TfpgGUITestCase.PegarDadosTeste(poCDS: TspClientDataSet;
+  const psArquivo, psAba: string; psID: string = ''): boolean;
+begin
+  result := TfpgDUnitDAO.PegarInstancia.PegarDadosTeste(poCDS, psArquivo, psAba, psID);
+end;
+
+
+function TfpgGUITestCase.PegarClasseModelTests: TfpgDataModelTestsClass;
+begin
+  if FoClasseModelTests = nil then
+    result := TfpgDataModelTests
+  else
+    result := FoClasseModelTests;
+end;
+
+procedure TfpgGUITestCase.CarregarDados;
+begin
+  FoDados := TspClientDataSet.Create(nil); //PC_OK
+  spNomeArquivoExcel := Copy(spNomeTela, 2, Length(spNomeTela) - 1) + 'Tests';
+  if (Copy(spNomeArquivoExcel, 1, 1) <> 'f') and (Copy(spNomeArquivoExcel, 1, 3) <> 'aip') then
+  begin
+    spNomeArquivoExcel := 'f' + spNomeArquivoExcel;
+  end;
+  PegarDadosTeste(FoDados, spNomeArquivoExcel, spDadosAbaAtual);
+end;
+
+
+procedure TfpgGUITestCase.ExecutarSubRoteiroTestes(poEvExecutarRoteiroTestes: TspEvExecutarRoteiroTestes; psAbaExcel: string; poModelTests: TfpgDataModelTests);
+var
+  oDados: TspClientDataSet;
+begin
+  oDados := TspClientDataSet.Create(nil);
+  PegarDadosTeste(oDados, spNomeArquivoExcel, psAbaExcel, spDataModelTests.spIDTeste);
+  try
+    while (not oDados.EOF) do
+    begin
+      poModelTests.CarregarModelTest(oDados);
+
+      if (poModelTests.spIDTeste = '') then
+      begin
+        oDados.Next;
+        Continue;
+      end;
+
+      ImprimirLog('SubRoteiro ' + poModelTests.GerarInformacoesLog);
+
+      if Assigned(poEvExecutarRoteiroTestes) then
+        poEvExecutarRoteiroTestes;
+
+      oDados.Next;
+    end;
+  finally
+    FreeAndNil(oDados);
+  end;
+end;
+
+constructor TfpgGUITestCase.Create(psMetodo: string; psLinhaPlanilha: string;
+  pnQtdeExecucao: integer = 1; pbFinalSuit: boolean = False);
+begin
+  spCarregarDadosSetUp := True;
+  spMetodoTeste := psLinhaPlanilha;
+  FnQtdeExecucao := pnQtdeExecucao;
+  spFinalSuit := pbFinalSuit;
+  inherited Create(psMetodo);
+end;
+
+procedure TfpgGUITestCase.EnterTextInto(poControle: TControl; psTexto: string;
+  pbCheckCampo: boolean = False);
+begin
+  inherited EnterTextInto(poControle, psTexto, pbCheckCampo);
+end;
+
+procedure TfpgGUITestCase.FinalizarPendencia(const poWindow: IWindow);
+var
+  i: integer;
+  sPendencia: string;
+  oTela: TfsajAssistente;
+begin
+  oTela := (poWindow.asControl as TfsajAssistente);
+  for i := 0 to oTela.ComponentCount - 1 do
+  begin
+    if (oTela.Components[i] is TdxCheckEdit) then
+    begin
+      sPendencia := CS_RESOLUCAO_46;
+      if Pos(sPendencia, (oTela.Components[i] as TdxCheckEdit).Caption) > 0 then
+        if not TdxCheckEdit(oTela.Components[i]).Checked then
+          Click(TControl(oTela.Components[i]));
+    end;
+  end;
+  oTela.pbConfirmar.Click;
+end;
+
+procedure TfpgGUITestCase.LimparVariaveis;
+begin
+  gbErroTest := False;
+  LimparArrayProcesso;
+  sleep(1000);
+  LimparVariaveisExternas;
+  sleep(1000);
+  spVerificadorTelas.FecharTelasAbertas;
+end;
+
+end.
+

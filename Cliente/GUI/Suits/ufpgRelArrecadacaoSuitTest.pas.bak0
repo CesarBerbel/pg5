@@ -1,0 +1,17 @@
+unit ufpgRelArrecadacaoSuitTest;
+
+interface
+
+uses
+  TestFrameWork, usgcRelArrecadacaoTests;
+
+const
+  CS_CAMINHO_TESTE = 'Certidão \ Relatório de Arrecadacão';
+
+implementation
+
+initialization
+  RegisterTest(CS_CAMINHO_TESTE, TfsgcRelArrecadacaoTests.Create('TestarRelArrecadacao', 'TestarRelArrecadacao', 1, true));
+
+end.
+

@@ -1,0 +1,99 @@
+unit usgcCertidaoFilasSuitTest;
+
+interface
+
+uses
+  TestFramework, ufpgConstanteGUITests, ufpgVariaveisTestesGUI, usgcFilaGeralIndicTests,
+  usgcFilaAguardProcesTests, usgcCadPedidoTests, usgcPesqPedidoTests,
+  usgcMudaSituacaoPedTests, usgcFilaAguardEntregaTests, usgcFilaEmAnaliseIndicTests;
+
+implementation
+
+const
+  CS_CAMINHO_TESTE = 'Certidão';
+
+initialization
+
+  if gsCliente = CS_CLIENTE_PG5_TJSP then
+  begin
+    RegisterTest(CS_CAMINHO_TESTE + '\ Cadastro de Pedidos',
+      TfsgcCadPedidoTests.Create('TestarCadPedido', 'TestarCadPedidoReaproveitaDados', 1, True));
+
+    RegisterTest(CS_CAMINHO_TESTE + '\ Cadastro de Pedidos',
+      TfsgcCadPedidoTests.Create('TestarCadPedido', 'TestarCadPedidoReaproveitaModelo', 1, True));
+
+    RegisterTest(CS_CAMINHO_TESTE + '\ Cadastro de Pedidos',
+      TfsgcCadPedidoTests.Create('TestarCadPedido', 'TestarCadPedidoReaproveitaPessoa', 1, True));
+
+    RegisterTest(CS_CAMINHO_TESTE + '\ Consulta de Pedidos',
+      TfsgcCadPedidoTests.Create('TestarCadPedido', 'TestarCadPedidoBasico'));
+
+    RegisterTest(CS_CAMINHO_TESTE + '\ Consulta de Pedidos',
+      TfsgcPesqPedidoTests.Create('TestarPesqPedido', 'TestarPesqPedido', 1, True));
+
+   //---------------------------------
+
+
+    RegisterTest(CS_CAMINHO_TESTE + '\ Filas \ Aguardando Processamento',
+      TfsgcCadPedidoTests.Create('TestarCadPedido', 'TestarCadPedidoBasico'));
+
+    //    RegisterTest(CS_CAMINHO_TESTE + '\ Filas \ Aguardando Processamento',
+    //      TfsgcMudaSituacaoPedTests.Create('TestarMudaSituacaoPed',
+    //      'TestarMudaSituacaoPedAguardProcessamento'));
+
+    RegisterTest(CS_CAMINHO_TESTE + '\ Filas \ Aguardando Processamento',
+      TfsgcFilaAguardProcesTests.Create('TestarFilaAguardProces',
+      'TestarFilaAguardProcesPrioriza', 1, True));
+
+   //---------------------------------
+
+    RegisterTest(CS_CAMINHO_TESTE + '\ Filas \ Única',
+      TfsgcFilaGeralIndicTests.Create('TestarFilaUnicaPedidos',
+      'TestarFilaUnicaPedidos', 1, True));
+
+   //---------------------------------
+
+    RegisterTest(CS_CAMINHO_TESTE + '\ Altera Situação Pedido Em Processamento',
+      TfsgcCadPedidoTests.Create('TestarCadPedido', 'TestarCadPedidoBasico'));
+
+    RegisterTest(CS_CAMINHO_TESTE + '\ Altera Situação Pedido Em Processamento',
+      TfsgcMudaSituacaoPedTests.Create('TestarMudaSituacaoPed',
+      'TestarMudaSituacaoPedEmProcessamento', 1, True));
+
+   //---------------------------------
+
+    RegisterTest(CS_CAMINHO_TESTE + '\ Altera Situação Pedido Aguardando Analise',
+      TfsgcCadPedidoTests.Create('TestarCadPedido', 'TestarCadPedidoBasico'));
+
+    RegisterTest(CS_CAMINHO_TESTE + '\ Altera Situação Pedido Aguardando Analise',
+      TfsgcMudaSituacaoPedTests.Create('TestarMudaSituacaoPed',
+      'TestarMudaSituacaoPedAguardAnalise', 1, True));
+
+   //---------------------------------
+
+    RegisterTest(CS_CAMINHO_TESTE + '\ Filas \ Em análise',
+      TfsgcCadPedidoTests.Create('TestarCadPedido', 'TestarCadPedidoBasico'));
+
+    RegisterTest(CS_CAMINHO_TESTE + '\ Filas \ Em análise',
+      TfsgcMudaSituacaoPedTests.Create('TestarMudaSituacaoPed',
+      'TestarMudaSituacaoPedEmAnalise'));
+
+    RegisterTest(CS_CAMINHO_TESTE + '\ Filas \ Em análise',
+      TfsgcFilaEmAnaliseIndicTests.Create('TestarFilaEmAnaliseIndic',
+      'TestarConsultaPerdidoEmAnalise', 1, True));
+
+   //---------------------------------
+
+    RegisterTest(CS_CAMINHO_TESTE + '\ Altera Situação Pedido Aguardando Entrega',
+      TfsgcCadPedidoTests.Create('TestarCadPedido', 'TestarCadPedidoBasico'));
+
+    RegisterTest(CS_CAMINHO_TESTE + '\ Altera Situação Pedido Aguardando Entrega',
+      TfsgcMudaSituacaoPedTests.Create('TestarMudaSituacaoPed',
+      'TestarMudaSituacaoPedAguardEntrega'));
+
+    RegisterTest(CS_CAMINHO_TESTE + '\ Altera Situação Pedido Aguardando Entrega',
+      TfsgcFilaAguardEntregaTests.Create('TestarFilaAguardEntrega',
+      'TestarFilaAguardEntregaEntregar', 1, True));
+  end;
+end.
+

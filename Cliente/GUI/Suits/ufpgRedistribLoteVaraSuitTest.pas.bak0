@@ -1,0 +1,37 @@
+unit ufpgRedistribLoteVaraSuitTest;
+
+interface
+
+uses
+  TestFramework, ufpgRedistribLoteVaraTests, ufpgCadProcessoTests, ufpgLimparVariaveisTests,
+  ufpgConstanteGUITests, ufpgVariaveisTestesGUI;
+
+implementation
+
+const
+  CS_CAMINHO_TESTE = 'Redistribuição de processo entre vara\';
+  CS_COM_SIGILO = 'Com Sigilo';
+
+initialization
+  if gsCliente = CS_CLIENTE_PG5_TJSC then
+    RegisterTest(CS_CAMINHO_TESTE, TffpgCadProcessoTests.Create('TestarCadastroProcesso',
+      CS_PROCESSO_PENAL_GENERICO))
+  else
+    RegisterTest(CS_CAMINHO_TESTE, TffpgCadProcessoTests.Create('TestarCadastroProcesso',
+      CS_PROCESSO_PENAL_GENERICO_DIRECIONADA));
+
+  RegisterTest(CS_CAMINHO_TESTE, TffpgRedistribLoteVaraTests.Create(
+    'TestarRedistribuicaoEntreVara', STRING_INDEFINIDO));
+
+  RegisterTest(CS_CAMINHO_TESTE, TffLimparVariaveisTests.Create('LimparVariaveis'));
+
+  RegisterTest(CS_CAMINHO_TESTE + CS_COM_SIGILO, TffpgCadProcessoTests.Create(
+    'TestarCadastroProcesso', 'ProcessoPenalComSigilo'));
+
+  RegisterTest(CS_CAMINHO_TESTE + CS_COM_SIGILO,
+    TffpgRedistribLoteVaraTests.Create('TestarRedistribuicaoEntreVara', STRING_INDEFINIDO));
+
+  RegisterTest(CS_CAMINHO_TESTE + CS_COM_SIGILO, TffLimparVariaveisTests.Create(
+    'LimparVariaveis'));
+end.
+

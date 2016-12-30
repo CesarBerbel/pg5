@@ -1,0 +1,1 @@
+Não é possível abrir o arquivo E:\RTC\pg5Dev-Feature_1.8.10-X\tests\xunit\pg5\Cliente\TestsBuild.txt

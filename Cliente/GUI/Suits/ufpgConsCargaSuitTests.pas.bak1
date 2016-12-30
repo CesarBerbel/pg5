@@ -1,0 +1,29 @@
+unit ufpgConsCargaSuitTests;
+
+interface
+
+uses
+  TestFramework, ufpgConsCargaTests, ufpgCadProcessoTests, ufpgLimparVariaveisTests,
+  ufpgMaterializaProcessoTests, usajConstante, ufpgRemessaTests;
+
+implementation
+
+const
+  CS_CAMINHO_TESTE = 'Consultar as cargas de um Processo Fisico';
+
+initialization
+  RegisterTest(CS_CAMINHO_TESTE, TffpgCadProcessoTests.Create('TestarCadastroProcesso',
+    'ProcessoPenalGenerico'));
+
+  RegisterTest(CS_CAMINHO_TESTE, TffpgMaterializaProcessoTests.Create(
+    'TestarMaterializaProcesso', ''));
+
+  RegisterTest(CS_CAMINHO_TESTE, TffpgRemessaTests.Create('TestarRemessaCarga',
+    'TestarRemessaProcessoFisicoCriminal'));
+
+  RegisterTest(CS_CAMINHO_TESTE, TffpgConsCargaTests.Create('TestarConsultarCarga',
+    'TestarConsultaCargaProcessoFisico1_12_9_1', 1, True));
+
+  RegisterTest(CS_CAMINHO_TESTE, TffLimparVariaveisTests.Create('LimparVariaveis'));
+end.
+
